@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# CleanSlate: user datasets and run outputs never go to git
+data/*
+!data/.gitkeep
