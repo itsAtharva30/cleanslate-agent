@@ -38,7 +38,7 @@ and insights.
 ## Setup (Windows PowerShell)
 
 ```powershell
-git clone https://github.com/YOUR-GITHUB-USERNAME/cleanslate-agent.git
+git clone https://github.com/itsAtharva30/cleanslate-agent.git
 cd cleanslate-agent
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
