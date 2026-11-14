@@ -1,10 +1,12 @@
 """Stage 1: validate the input file, then copy, read and record it.
 
-This file grows over Stage 1. For now it holds validate_input only.
+This file grows over Stage 1. So far it holds validate_input and read_workbook.
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 
+import pandas as pd
 from openpyxl import load_workbook
 
 from cleanslate.errors import (
@@ -14,6 +16,7 @@ from cleanslate.errors import (
     InputNotFoundError,
     UnsupportedFileTypeError,
 )
+from cleanslate.models import SheetInfo
 
 SUPPORTED_SUFFIX = ".xlsx"
 
@@ -52,3 +55,65 @@ def validate_input(path: str | Path) -> Path:
     workbook.close()
 
     return p.resolve()
+
+
+@dataclass(frozen=True)
+class WorkbookData:
+    """Raw sheet values plus structural facts, read from the copy."""
+
+    sheets: dict[str, pd.DataFrame]
+    sheet_infos: list[SheetInfo]
+    warnings: list[str]
+
+
+def read_workbook(path: str | Path) -> WorkbookData:
+    """Read every sheet of the workbook at path as raw data, with hazard warnings.
+
+    Call this on the COPY inside the run folder, never on the original. Values are
+    read with header=None and dtype=object, so nothing is guessed or converted.
+    Hidden sheets are still read, and each hazard is reported as a warning.
+    Warnings hold sheet names and counts only, never cell contents.
+    """
+    path = Path(path)
+    frames = pd.read_excel(path, sheet_name=None, header=None, dtype=object)
+
+    infos: list[SheetInfo] = []
+    warnings: list[str] = []
+    # Full load, not read_only: read-only worksheets have no merged_cells.
+    workbook = load_workbook(path)
+    try:
+        for ws in workbook.worksheets:
+            frame = frames[ws.title]
+            merged = len(ws.merged_cells.ranges)
+            formulas = sum(
+                1 for row in ws.iter_rows() for cell in row if cell.data_type == "f"
+            )
+            infos.append(
+                SheetInfo(
+                    name=ws.title,
+                    state=ws.sheet_state,
+                    n_rows=frame.shape[0],
+                    n_cols=frame.shape[1],
+                    merged_ranges=merged,
+                    formula_cells=formulas,
+                )
+            )
+            if ws.sheet_state == "hidden":
+                warnings.append(f"Hidden sheet: '{ws.title}'")
+            elif ws.sheet_state == "veryHidden":
+                warnings.append(f"Very hidden sheet: '{ws.title}'")
+            if merged:
+                warnings.append(
+                    f"Merged cells in '{ws.title}': {merged} range(s). "
+                    "Only the top-left cell of each range holds a value."
+                )
+            if formulas:
+                warnings.append(
+                    f"Formulas in '{ws.title}': {formulas} cell(s). A formula "
+                    "cell reads as empty when the file holds no saved result "
+                    "(for example, a file written by a script)."
+                )
+    finally:
+        workbook.close()
+
+    return WorkbookData(sheets=frames, sheet_infos=infos, warnings=warnings)
