@@ -21,6 +21,9 @@ dev = [
     "ruff>=0.6",
 ]
 
+[project.scripts]
+cleanslate = "cleanslate.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
