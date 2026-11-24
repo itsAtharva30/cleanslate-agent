@@ -8,13 +8,21 @@ version = "0.0.1"
 description = "Agent that turns dirty Excel datasets into clean, color-coded, print-ready workbooks with a change log."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+
+dependencies = [
+    "pandas>=2.3,<3",
+    "openpyxl>=3.1",
+    "pydantic>=2.9",
+]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
     "ruff>=0.6",
 ]
+
+[project.scripts]
+cleanslate = "cleanslate.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
